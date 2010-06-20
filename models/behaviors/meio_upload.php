@@ -1115,7 +1115,7 @@ class MeioUploadBehavior extends ModelBehavior {
 		if (!empty($filename) && $filename != $this->__fields[$model->alias][$fieldName]['default']) {
 			$this->__filesToRemove[] = array(
 				'field' => $fieldName,
-				'dir' => $this->__fields[$model->alias][$fieldName]['dir'],
+				'dir' => $model->data[$model->alias]['dir'],
 				'name' => $filename
 			);
 			if ($this->__fields[$model->alias][$fieldName]['thumbnails'] && !empty($this->__fields[$model->alias][$fieldName]['thumbsizes'])) {
@@ -1162,7 +1162,8 @@ class MeioUploadBehavior extends ModelBehavior {
 /**
  * Delete the $filename inside the $dir and the thumbnails.
  * Returns true if the file is deleted and false otherwise.
- *
+ * Encrypted folders are also deleted if they are empty
+ * 
  * @param $filename Object
  * @param $dir Object
  * @return boolean
@@ -1173,6 +1174,14 @@ class MeioUploadBehavior extends ModelBehavior {
 		if (is_file($saveAs) && !unlink($saveAs)) {
 			return false;
 		}
+		
+		if ($this->__fields[$model->alias][$field]['encryptedFolder']) {
+			// scandir grabs . and .. too
+			if (count(scandir($dir)) < 3) {
+				rmdir($dir);
+			}
+		}
+		
 		if ($this->__fields[$model->alias][$field]['thumbnails'] && !empty($this->__fields[$model->alias][$field]['thumbsizes'])) {
 			foreach ($this->__fields[$model->alias][$field]['thumbsizes'] as $size => &$config) {
 				$file =& new File($dir . DS . $size . DS . $filename);
