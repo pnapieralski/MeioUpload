@@ -267,6 +267,31 @@ class MeioUploadBehavior extends ModelBehavior {
 	}
 
 /**
+ * Builds a semi random path based on the id to avoid having thousands of files
+ * or directories in one directory. This would result in a slowdown on most file systems.
+ *
+ * Works up to 5 level deep
+ *
+ * @see http://en.wikipedia.org/wiki/Comparison_of_file_systems#Limits
+ * @link http://cakedc.com/eng/florian_kraemer/2010/01/25/file-uploading-file-storage-and-cakephp-mediaview-class
+ * @param integer $level how many directories deep to go
+ * @return mixed
+ * @access protected
+ */
+	function _randomPath($level = 3) {
+		$string = crc32(String::UUID());
+		$decrement = 0;
+		$path = null;
+ 
+		for ($i = 0; $i < $level; $i++) {
+			$decrement = $decrement - 2;
+			$path .= sprintf("%02d" . DS, substr('000000' . $string, $decrement, 2));
+		}
+ 
+		return $path;
+	}
+	
+/**
  * Sets the validation rules for each field.
  *
  * @param $model Object
@@ -719,8 +744,8 @@ class MeioUploadBehavior extends ModelBehavior {
 				
 				// save in encrypted folder if specified
 				if ($options['encryptedFolder']) {
-					// setup UUID as a unique folder name
-					$options['dir'] .= DS . String::uuid();
+					// setup unique folder path
+					$options['dir'] .= DS . $this->_randomPath();
 				}
 
 				// Fix the filename, removing bad characters and avoiding from overwriting existing ones
@@ -1175,10 +1200,24 @@ class MeioUploadBehavior extends ModelBehavior {
 			return false;
 		}
 		
+		// check through all directories and clean them up if they are now empty
 		if ($this->__fields[$model->alias][$field]['encryptedFolder']) {
-			// scandir grabs . and .. too
-			if (count(scandir($dir)) < 3) {
-				rmdir($dir);
+			$baseDir = substr($dir, 0, strlen($this->__fields[$model->alias][$field]['dir']));
+			$trailDir = substr($dir, strlen($this->__fields[$model->alias][$field]['dir']));
+			$subdirs = explode(DS, $trailDir);
+			if (empty($subdirs[count($subdirs)-1])) {
+				unset($subdirs[count($subdirs)-1]);
+			}
+			
+			$dirToRm = $dir;
+			for ($i = 1; $i < count($subdirs); $i++) {
+				$dirToRm = $baseDir;
+				for ($j = count($subdirs); $j >= $i; $j--) {
+						$dirToRm .= $subdirs[count($subdirs)-$j] . DS;
+				}
+				if (count(scandir($dirToRm)) < 3) {
+						rmdir($dirToRm);
+				}
 			}
 		}
 		
