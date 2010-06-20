@@ -267,7 +267,7 @@ class MeioUploadBehavior extends ModelBehavior {
 	}
 
 /**
- * Builds a semi random path based on the id to avoid having thousands of files
+ * Builds a semi random path based on a unique string to avoid having thousands of files
  * or directories in one directory. This would result in a slowdown on most file systems.
  *
  * Works up to 5 level deep
